@@ -10,7 +10,6 @@ class MemoController extends Controller
 {
     public function index()
     {
-        // カテゴリとメモをそれぞれの並び順(sort_order)に従って取得
         $categories = Category::with([
             'memos' => function ($query) {
                 $query->orderBy('sort_order', 'asc');
@@ -20,11 +19,19 @@ class MemoController extends Controller
         return view('memos.index', compact('categories'));
     }
 
-    // 大分類の保存（確実に一番下へ）
+    // --- 大分類の保存（ここにも連打防止を追加！） ---
     public function storeCategory(Request $request)
     {
-        $maxOrder = Category::max('sort_order') ?? 0;
+        // 10秒以内に同じ名前のカテゴリが作られていないかチェック
+        $exists = Category::where('name', $request->name)
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->exists();
 
+        if ($exists) {
+            return redirect()->back()->with('error', '短時間に同じカテゴリは登録できません。');
+        }
+
+        $maxOrder = Category::max('sort_order') ?? 0;
         $category = new Category();
         $category->name = $request->name;
         $category->sort_order = $maxOrder + 1;
@@ -57,33 +64,26 @@ class MemoController extends Controller
             $currentCategory->save();
             $targetCategory->save();
         } else {
-            if ($direction === 'up') {
-                $currentCategory->sort_order--;
-            } else {
-                $currentCategory->sort_order++;
-            }
+            if ($direction === 'up') $currentCategory->sort_order--;
+            else $currentCategory->sort_order++;
             $currentCategory->save();
         }
         return redirect('/#category-' . $currentCategory->id);
     }
 
-    // 中分類の保存（ここで連打防止を確実に実行！）
+    // --- 中分類（メモ）の保存（ここも連打防止！） ---
     public function storeMemo(Request $request)
     {
-        // --- 二重登録防止チェック ---
         $exists = Memo::where('category_id', $request->category_id)
             ->where('content', $request->content)
-            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複を弾く
+            ->where('created_at', '>=', now()->subSeconds(10))
             ->exists();
 
         if ($exists) {
-            // 同じ内容があれば保存せずに戻る
             return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
         }
 
-        // 既存のメモを一つずつ押し下げる
         Memo::where('category_id', $request->category_id)->increment('sort_order');
-
         $memo = new Memo();
         $memo->category_id = $request->category_id;
         $memo->content = $request->content;
@@ -138,10 +138,8 @@ class MemoController extends Controller
             $currentMemo->save();
             $targetMemo->save();
         } else {
-            if ($direction === 'up')
-                $currentMemo->sort_order--;
-            else
-                $currentMemo->sort_order++;
+            if ($direction === 'up') $currentMemo->sort_order--;
+            else $currentMemo->sort_order++;
             $currentMemo->save();
         }
         return redirect('/#category-' . $currentMemo->category_id);
