@@ -23,21 +23,12 @@ class MemoController extends Controller
     // 大分類の保存（確実に一番下へ）
     public function storeCategory(Request $request)
     {
-        // --- ここから追加：二重登録防止チェック ---
-        $exists = Memo::where('category_id', $request->category_id)
-            ->where('content', $request->content)
-            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複をチェック
-            ->exists();
-
-        if ($exists) {
-            return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
-        }
         $maxOrder = Category::max('sort_order') ?? 0;
 
         $category = new Category();
         $category->name = $request->name;
         $category->sort_order = $maxOrder + 1;
-        $category->save(); // これで確実に保存されます
+        $category->save();
 
         return redirect('/#category-' . $category->id);
     }
@@ -60,14 +51,12 @@ class MemoController extends Controller
         }
 
         if ($targetCategory) {
-            // 相手が見つかったら入れ替える
             $tempOrder = $currentCategory->sort_order;
             $currentCategory->sort_order = $targetCategory->sort_order;
             $targetCategory->sort_order = $tempOrder;
             $currentCategory->save();
             $targetCategory->save();
         } else {
-            // 相手が見つからない（番号が重複している）場合の強制移動
             if ($direction === 'up') {
                 $currentCategory->sort_order--;
             } else {
@@ -78,11 +67,20 @@ class MemoController extends Controller
         return redirect('/#category-' . $currentCategory->id);
     }
 
-    // 中分類の保存（確実に一番上へ）
+    // 中分類の保存（ここで連打防止を確実に実行！）
     public function storeMemo(Request $request)
     {
+        // --- 二重登録防止チェック ---
+        $exists = Memo::where('category_id', $request->category_id)
+            ->where('content', $request->content)
+            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複を弾く
+            ->exists();
 
-        
+        if ($exists) {
+            // 同じ内容があれば保存せずに戻る
+            return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
+        }
+
         // 既存のメモを一つずつ押し下げる
         Memo::where('category_id', $request->category_id)->increment('sort_order');
 
@@ -91,7 +89,7 @@ class MemoController extends Controller
         $memo->content = $request->content;
         $memo->sort_order = 0;
         $memo->priority_color = 'white';
-        $memo->save(); // これで確実に保存されます
+        $memo->save();
 
         return redirect('/#category-' . $request->category_id);
     }
@@ -140,7 +138,6 @@ class MemoController extends Controller
             $currentMemo->save();
             $targetMemo->save();
         } else {
-            // 強制移動
             if ($direction === 'up')
                 $currentMemo->sort_order--;
             else
