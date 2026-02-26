@@ -11,9 +11,11 @@ class MemoController extends Controller
     public function index()
     {
         // カテゴリとメモをそれぞれの並び順(sort_order)に従って取得
-        $categories = Category::with(['memos' => function($query) {
-            $query->orderBy('sort_order', 'asc');
-        }])->orderBy('sort_order', 'asc')->get();
+        $categories = Category::with([
+            'memos' => function ($query) {
+                $query->orderBy('sort_order', 'asc');
+            }
+        ])->orderBy('sort_order', 'asc')->get();
 
         return view('memos.index', compact('categories'));
     }
@@ -22,7 +24,7 @@ class MemoController extends Controller
     public function storeCategory(Request $request)
     {
         $maxOrder = Category::max('sort_order') ?? 0;
-        
+
         $category = new Category();
         $category->name = $request->name;
         $category->sort_order = $maxOrder + 1;
@@ -70,6 +72,16 @@ class MemoController extends Controller
     // 中分類の保存（確実に一番上へ）
     public function storeMemo(Request $request)
     {
+
+        // --- ここから追加：二重登録防止チェック ---
+        $exists = Memo::where('category_id', $request->category_id)
+            ->where('content', $request->content)
+            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複をチェック
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
+        }
         // 既存のメモを一つずつ押し下げる
         Memo::where('category_id', $request->category_id)->increment('sort_order');
 
@@ -128,8 +140,10 @@ class MemoController extends Controller
             $targetMemo->save();
         } else {
             // 強制移動
-            if ($direction === 'up') $currentMemo->sort_order--;
-            else $currentMemo->sort_order++;
+            if ($direction === 'up')
+                $currentMemo->sort_order--;
+            else
+                $currentMemo->sort_order++;
             $currentMemo->save();
         }
         return redirect('/#category-' . $currentMemo->category_id);
