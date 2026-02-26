@@ -23,6 +23,15 @@ class MemoController extends Controller
     // 大分類の保存（確実に一番下へ）
     public function storeCategory(Request $request)
     {
+        // --- ここから追加：二重登録防止チェック ---
+        $exists = Memo::where('category_id', $request->category_id)
+            ->where('content', $request->content)
+            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複をチェック
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
+        }
         $maxOrder = Category::max('sort_order') ?? 0;
 
         $category = new Category();
@@ -73,15 +82,7 @@ class MemoController extends Controller
     public function storeMemo(Request $request)
     {
 
-        // --- ここから追加：二重登録防止チェック ---
-        $exists = Memo::where('category_id', $request->category_id)
-            ->where('content', $request->content)
-            ->where('created_at', '>=', now()->subSeconds(10)) // 10秒以内の重複をチェック
-            ->exists();
-
-        if ($exists) {
-            return redirect()->back()->with('error', '短時間に同じ内容は登録できません。');
-        }
+        
         // 既存のメモを一つずつ押し下げる
         Memo::where('category_id', $request->category_id)->increment('sort_order');
 
