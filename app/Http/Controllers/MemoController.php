@@ -37,13 +37,13 @@ class MemoController extends Controller
         $category->sort_order = $maxOrder + 1;
         $category->save();
 
-        return redirect('/#category-' . $category->id);
+        return redirect('/memo#category-' . $category->id);
     }
 
     public function deleteCategory($id)
     {
         Category::destroy($id);
-        return redirect('/')->with('status', 'カテゴリを削除しました');
+        return redirect('/memo')->with('status', 'カテゴリを削除しました');
     }
 
     public function moveCategory($id, $direction)
@@ -68,7 +68,7 @@ class MemoController extends Controller
             else $currentCategory->sort_order++;
             $currentCategory->save();
         }
-        return redirect('/#category-' . $currentCategory->id);
+        return redirect('/memo#category-' . $currentCategory->id);
     }
 
     // --- 中分類（メモ）の保存（ここも連打防止！） ---
@@ -91,7 +91,7 @@ class MemoController extends Controller
         $memo->priority_color = 'white';
         $memo->save();
 
-        return redirect('/#category-' . $request->category_id);
+        return redirect('/memo#category-' . $request->category_id);
     }
 
     public function checkMemo($id)
@@ -99,7 +99,7 @@ class MemoController extends Controller
         $memo = Memo::find($id);
         $memo->is_checked = !$memo->is_checked;
         $memo->save();
-        return redirect('/#category-' . $memo->category_id);
+        return redirect('/memo#category-' . $memo->category_id);
     }
 
     public function deleteMemo($id)
@@ -107,7 +107,7 @@ class MemoController extends Controller
         $memo = Memo::find($id);
         $catId = $memo->category_id;
         $memo->delete();
-        return redirect('/#category-' . $catId);
+        return redirect('/memo#category-' . $catId);
     }
 
     public function updateColor(Request $request, $id)
@@ -115,7 +115,7 @@ class MemoController extends Controller
         $memo = Memo::find($id);
         $memo->priority_color = $request->color;
         $memo->save();
-        return redirect('/#category-' . $memo->category_id);
+        return redirect('/memo#category-' . $memo->category_id);
     }
 
     public function moveMemo($id, $direction)
@@ -142,6 +142,6 @@ class MemoController extends Controller
             else $currentMemo->sort_order++;
             $currentMemo->save();
         }
-        return redirect('/#category-' . $currentMemo->category_id);
+        return redirect('/memo#category-' . $currentMemo->category_id);
     }
 }
